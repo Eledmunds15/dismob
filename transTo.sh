@@ -8,7 +8,7 @@ DEST_DIR="/mnt/parscratch/users/mtp24ele/obstacle_calcs/obstacle_shear/"
 
 # Use rsync for efficient transfer
 echo "Starting file transfer..."
-rsync -avzP --exclude="*.git" --exclude="000_archived_data" --exclude="000_data/" --exclude="slurm_outputs/" "$SOURCE_DIR/" "$USER@$HOST:$DEST_DIR"
+rsync -avzP --exclude="*.git" --exclude="000_archived_data" --exclude="000_data/03_shear" --exclude="*.ipynb" "$SOURCE_DIR/" "$USER@$HOST:$DEST_DIR"
 
 # Check if the transfer was successful
 if [ $? -eq 0 ]; then

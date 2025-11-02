@@ -35,29 +35,27 @@ INPUT_FILE = os.path.join(INPUT_DIR, 'output', 'edge_dislo_100_30_40_output.lmp'
 POTENTIALS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '00_potentials'))
 POTENTIAL_FILE = os.path.join(POTENTIALS_DIR, 'malerba.fs')
 
-EXTERNAL_FILE = os.path.join(os.path.dirname(__file__), 'funcs.py')
-
 # =============================================================
 # SIMULATION PARAMETERS
 # =============================================================
 
 OBSTACLE_TYPES = ['void', 'prec']
-OBSTACLE_TYPE = OBSTACLE_TYPES[1]
+OBSTACLE_TYPE = OBSTACLE_TYPES[0]
 
-OBSTACLE_RADIUS = 30
+OBSTACLE_RADIUS = 15
 DISLOCATION_INITIAL_DISPLACEMENT = 40
 FIXED_SURFACE_DEPTH = 5
 
 DT = 0.001
-TEMPERATURE = 1000
-SHEAR_VELOCITY = 0.001
+TEMPERATURE = 1100
+SHEAR_VELOCITY = 0.01
 
-RUN_TIME = 500
-THERMO_FREQ = 10
-DUMP_FREQ = 10
+RUN_TIME = 150000
+THERMO_FREQ = 1000
+DUMP_FREQ = 1000
 RESTART_FREQ = DUMP_FREQ
 
-RANDOM_SEED = np.random.randint(1000, 9999)
+RANDOM_SEED = np.random.randint(1000,9999)
 
 # =============================================================
 # DIRECTORY INITIALIZATION AND CASE NAMING
@@ -102,6 +100,7 @@ def write_metadata():
         """Write metadata about the simulation setup to JSON."""
         metadata = {
             "timestamp": str(datetime.datetime.now()),
+            "mpi_cores": size,
             "input_file": INPUT_FILE,
             "potential_file": POTENTIAL_FILE,
             "obstacle_type": OBSTACLE_TYPE,
@@ -285,6 +284,7 @@ def sim_prec():
 
     dump_path = os.path.join(DUMP_DIR, 'dump_*')
     lmp.cmd.dump('1', 'all', 'custom', DUMP_FREQ, dump_path, 'id', 'x', 'y', 'z', 'c_peratom', 'c_stress[4]')
+    
     restart_path = os.path.join(RESTART_DIR, 'restart_*')
     lmp.cmd.restart(RESTART_FREQ, restart_path)
 
