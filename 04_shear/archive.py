@@ -42,12 +42,12 @@ POTENTIAL_FILE = os.path.join(POTENTIALS_DIR, 'malerba.fs')
 OBSTACLE_TYPES = ['void', 'prec']
 OBSTACLE_TYPE = OBSTACLE_TYPES[0]
 
-OBSTACLE_RADIUS = 15
+OBSTACLE_RADIUS = 20
 DISLOCATION_INITIAL_DISPLACEMENT = 40
 FIXED_SURFACE_DEPTH = 5
 
 DT = 0.001
-TEMPERATURE = 1100
+TEMPERATURE = 600
 SHEAR_VELOCITY = 0.01
 
 RUN_TIME = 150000
@@ -89,6 +89,8 @@ def initialise_output_dirs():
 
         for directory in [CASE_DATA_DIR, OUTPUT_DIR, DUMP_DIR, LOG_DIR, RESTART_DIR]:
             os.makedirs(directory, exist_ok=True)
+            
+        print(f"Successfully made {CASE_DATA_DIR}", flush=True)
 
     comm.Barrier()
 
@@ -290,7 +292,6 @@ def sim_prec():
 
     lmp.cmd.run(RUN_TIME)
     return None
-
 
 # =============================================================
 # ENTRY POINT

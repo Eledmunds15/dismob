@@ -34,7 +34,7 @@ size = comm.Get_size()
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '000_data')) # Master data directory
 STAGE_DATA_DIR = os.path.abspath(os.path.join(BASE_DIR, '03_shear')) # Stage data directory
-CASE_DIR = os.path.abspath(os.path.join(STAGE_DATA_DIR, 'prec_R15_T900_V0.01_9116'))
+CASE_DIR = os.path.abspath(os.path.join(STAGE_DATA_DIR, 'void_R20_T600_V0.01_7118'))
 
 for directory in [STAGE_DATA_DIR, CASE_DIR]:
     if rank == 0:
@@ -107,7 +107,7 @@ def process_file(dump_chunk):
         data = pipeline.compute()
 
         performDXA(data.clone())
-        # performWS(data.clone())
+        performWS(data.clone())
         
         print(f"Successfully processed frame {frame}...", flush=True)
 
