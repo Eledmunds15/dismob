@@ -1,32 +1,33 @@
 #!/usr/bin/env python3
-"""Run the dislocation–void interaction simulation."""
+"""
+Run the dislocation–void interaction simulation.
 
-# Example run:
-# apptainer exec 00_envs/lmp_CPU_22Jul2025.sif /opt/venv/bin/python3 04_shear/run.py --config 000_data/03_shear/test_run/configs/1_stN_dtE_T100_FS10M_S9233.yaml --bench
+Example run:
+apptainer exec 00_envs/lmp_CPU_22Jul2025.sif /opt/venv/bin/python3 04_shear/run.py --config 000_data/03_shear/test_run/configs/1_stN_dtE_T100_FS10M_S9233.yaml --bench
+"""
 
-import os, yaml
+import os
+import yaml
 import numpy as np
 from lammps import lammps
 import datetime
 
-# -----------------------
-# Project root (absolute)
-# -----------------------
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+# =============================================================
+# GLOBALS & PROJECT ROOT
+# =============================================================
 
-# -----------------------
-# Global parameters
-# -----------------------
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 params = {}
 
-# -----------------------
-# Extract parameters from YAML
-# -----------------------
+# =============================================================
+# CONFIGURATION HANDLING
+# =============================================================
+
 def extractParams(args_config_path, args_bench):
     """Load YAML config and resolve all relative paths."""
     global params
 
-    # Make YAML path absolute
+    # --- Make YAML path absolute ---
     if not os.path.isabs(args_config_path):
         config_path = os.path.join(PROJECT_ROOT, args_config_path)
     else:
@@ -35,18 +36,18 @@ def extractParams(args_config_path, args_bench):
     if not os.path.exists(config_path):
         raise FileNotFoundError(f"Config file not found: {config_path}")
 
-    # Load YAML
+    # --- Load YAML ---
     with open(config_path, "r") as f:
         params = yaml.safe_load(f)
 
-    # Store absolute YAML path
+    # --- Store absolute YAML path ---
     params["config_path"] = config_path
 
-    # Resolve paths relative to PROJECT_ROOT
+    # --- Resolve relative paths ---
     params["input_dir"] = os.path.abspath(os.path.join(PROJECT_ROOT, params.get("input_dir", ".")))
     params["potential_file"] = os.path.abspath(os.path.join(PROJECT_ROOT, params.get("potential_file")))
 
-    # Apply benchmark mode
+    # --- Apply benchmark mode ---
     if args_bench:
         params["run_time"] = 1000  # quick runtime
         params["bench"] = True
@@ -58,17 +59,18 @@ def extractParams(args_config_path, args_bench):
     print(f"Benchmark mode: {params['bench']}")
     return params
 
-# -----------------------
-# Prepare output directories
-# -----------------------
+# =============================================================
+# OUTPUT DIRECTORY PREPARATION
+# =============================================================
+
 def prepareOutput():
-    """Create simulation output directory structure based on SIM_ID and write metadata."""
+    """Create simulation output directory structure and metadata."""
     global params
 
     if not params:
         raise RuntimeError("Parameters not loaded. Call extractParams() first.")
 
-    # Directory containing YAML
+    # --- Determine YAML directory ---
     yaml_dir = os.path.dirname(params["config_path"])
 
     # Move one level up if YAML is inside 'configs'
@@ -79,16 +81,16 @@ def prepareOutput():
     if params.get("bench"):
         sim_id = f"{sim_id}_bench"
 
-    # Create simulation root directory
+    # --- Create simulation root directory ---
     sim_out_dir = os.path.join(yaml_dir, sim_id)
     os.makedirs(sim_out_dir, exist_ok=True)
 
-    # Standard subdirectories
+    # --- Standard subdirectories ---
     subdirs = ["dump", "logs", "output", "restart"]
     for sub in subdirs:
         os.makedirs(os.path.join(sim_out_dir, sub), exist_ok=True)
 
-    # Save directories back to params
+    # --- Save directories back to params ---
     params["output_dir"] = sim_out_dir
     params["dump_dir"] = os.path.join(sim_out_dir, "dump")
     params["logs_dir"] = os.path.join(sim_out_dir, "logs")
@@ -98,18 +100,20 @@ def prepareOutput():
     print(f"[✓] Prepared output directory at: {sim_out_dir}")
     print(f"Subdirectories: {', '.join(subdirs)}")
 
-    # Write metadata
+    # --- Write metadata ---
     metadata_file = os.path.join(params["logs_dir"], "metadata.txt")
     with open(metadata_file, "w") as f:
         f.write("Simulation metadata\n")
         f.write(f"Generated on: {datetime.datetime.now().isoformat()}\n")
-        for key in ["sim_id", "study_name", "input_file", "temperature", "force_magnitude", "run_time", "bench"]:
+        for key in ["sim_id", "study_name", "input_file", "temperature",
+                    "force_magnitude", "run_time", "bench"]:
             f.write(f"{key}: {params.get(key)}\n")
     print(f"[✓] Metadata written to: {metadata_file}")
 
-# -----------------------
-# LAMMPS simulation
-# -----------------------
+# =============================================================
+# LAMMPS SIMULATION
+# =============================================================
+
 def lammpsSim():
     """Run LAMMPS with parameters loaded from YAML."""
     global params
@@ -117,7 +121,9 @@ def lammpsSim():
     if not params:
         raise RuntimeError("Parameters not loaded. Call extractParams() first.")
 
-    # Resolve absolute input file
+    # ---------------------------------------------------------
+    # 1. Load input file and initialize LAMMPS
+    # ---------------------------------------------------------
     full_input_path = os.path.join(params["input_dir"], params["input_file"])
     if not os.path.exists(full_input_path):
         raise FileNotFoundError(f"Input file not found: {full_input_path}")
@@ -126,26 +132,30 @@ def lammpsSim():
     lmp.cmd.clear()
     lmp.cmd.log(os.path.join(params['logs_dir'], 'log.lammps'))
 
-    # LAMMPS setup
+    # ---------------------------------------------------------
+    # 2. Basic setup (units, dimensions, boundary, atom style)
+    # ---------------------------------------------------------
     lmp.cmd.units('metal')
     lmp.cmd.dimension(3)
     lmp.cmd.boundary('p', 'f', 'p')
     lmp.cmd.atom_style('atomic')
-    lmp.cmd.read_data(full_input_path)
 
-    # Pair style and potential
+    # ---------------------------------------------------------
+    # 3. Read structure and define potential
+    # ---------------------------------------------------------
+    lmp.cmd.read_data(full_input_path)
     lmp.cmd.pair_style('eam/fs')
     lmp.cmd.pair_coeff('* *', params['potential_file'], 'Fe')
 
+    # ---------------------------------------------------------
+    # 4. Extract simulation box information
+    # ---------------------------------------------------------
     boxBounds = lmp.extract_box()
-
     box_min = boxBounds[0]
     box_max = boxBounds[1]
-
     xmin, xmax = box_min[0], box_max[0]
     ymin, ymax = box_min[1], box_max[1]
     zmin, zmax = box_min[2], box_max[2]
-
     simBoxCenter = [np.mean([xmin, xmax]), np.mean([ymin, ymax]), np.mean([zmin, zmax])]
 
     print(
@@ -156,67 +166,154 @@ def lammpsSim():
         f"Box center: ({simBoxCenter[0]:.3f}, {simBoxCenter[1]:.3f}, {simBoxCenter[2]:.3f})"
     )
 
-    # Displace and define regions
+    # ---------------------------------------------------------
+    # 5. Define groups and initial displacement
+    # ---------------------------------------------------------
     lmp.cmd.group('all', 'type', '1')
 
-    if params['dislocation_initial_displacement'] != None:
-        lmp.cmd.displace_atoms('all', 'move', params['obstacle_radius'] + params['dislocation_initial_displacement'], 0, 0, 'units', 'box')
-        lmp.cmd.write_dump('all', 'custom', os.path.join(params['output_subdir'], 'displaced_config.txt'), 'id', 'x', 'y', 'z')
+    if params['dislocation_initial_displacement'] is not None:
+        lmp.cmd.displace_atoms(
+            'all', 'move',
+            params['obstacle_radius'] + params['dislocation_initial_displacement'],
+            0, 0, 'units', 'box'
+        )
+        lmp.cmd.write_dump(
+            'all', 'custom',
+            os.path.join(params['output_subdir'], 'displaced_config.txt'),
+            'id', 'x', 'y', 'z'
+        )
 
-    splitGeom(lmp)
+    # ---------------------------------------------------------
+    # 6. Define surface regions and groups
+    # ---------------------------------------------------------
+    lmp.cmd.region('top_surface_reg', 'block', 'INF', 'INF',
+                   (ymax - params['fixed_surface_depth']), 'INF', 'INF', 'INF')
+    lmp.cmd.region('bottom_surface_reg', 'block', 'INF', 'INF', 'INF',
+                   (ymin + params['fixed_surface_depth']), 'INF', 'INF')
+    lmp.cmd.group('top_surface', 'region', 'top_surface_reg')
+    lmp.cmd.group('bottom_surface', 'region', 'bottom_surface_reg')
 
-    defComputes(lmp)
+    # ---------------------------------------------------------
+    # 7. Define obstacle / void / precipitate regions
+    # ---------------------------------------------------------
+    if (params['study_type'] == 'prec') or (params['study_type'] == 'void'):
+        lmp.cmd.region('obstacle_reg', 'sphere',
+                       simBoxCenter[0], simBoxCenter[1], simBoxCenter[2],
+                       params['obstacle_radius'])
+        lmp.cmd.group('obstacle', 'region', 'obstacle_reg')
+        lmp.cmd.group('mobile_atoms', 'subtract', 'all', 'obstacle',
+                      'top_surface', 'bottom_surface')
 
-    lmp.cmd.fix('1', 'all', 'nvt', 'temp', params['temperature'], params['temperature'], 100.0 * params['timestep'])
-    lmp.cmd.velocity('mobile_atoms', 'create', params['temperature'], params['random_seed'], 'mom', 'yes', 'rot', 'yes')
-    
-    if params['force_type'] == 'strain':
-        lmp.cmd.fix('top_surface_freeze', 'top_surface', 'setforce', 0.0, 0.0, 0.0)
-        lmp.cmd.fix('bottom_surface_freeze', 'bottom_surface', 'setforce', 0.0, 0.0, 0.0)
-
-        height = (ymax - ymin)
-
-        shearVelocity = params['force_magnitude']*height
-
-        lmp.cmd.velocity('top_surface', 'set', -shearVelocity, 0.0, 0.0)
-        lmp.cmd.velocity('bottom_surface', 'set', 0.0, 0.0, 0.0)
-
-    print(f"[✓] LAMMPS run complete. Log: {os.path.join(params['logs_dir'], 'log.lammps')}")
-
-    return None
-
-def splitGeom(lmp, ymin, ymax):
-
-    global params
-
-    if (params['study_type'] == 'native'):
-
-        lmp.cmd.region('top_surface_reg', 'block', 'INF', 'INF', (ymax - params['fixed_surface_depth']), 'INF', 'INF', 'INF')
-        lmp.cmd.region('bottom_surface_reg', 'block', 'INF', 'INF', 'INF', (ymin + params['fixed_surface_depth']), 'INF', 'INF')
-
-        lmp.cmd.group('top_surface', 'region', 'top_surface_reg')
-        lmp.cmd.group('bottom_surface', 'region', 'bottom_surface_reg')
-        lmp.cmd.group('mobile_atoms', 'subtract', 'all', 'top_surface', 'bottom_surface')
-        
-        return None
-
-    elif (params['study_type'] == 'obstacle'):
-
-        return None
-
+        if (params['study_type'] == 'void'):
+            lmp.cmd.delete_atoms('group', 'obstacle')
+            lmp.cmd.write_dump(
+                'all', 'custom',
+                os.path.join(params['output_dir'], 'displaced_voided_config.txt'),
+                'id', 'x', 'y', 'z'
+            )
+        elif (params['study_type'] == 'prec'):
+            lmp.cmd.write_dump(
+                'obstacle', 'custom',
+                os.path.join(params['output_dir'], 'precipitate_ID.txt'),
+                'id', 'x', 'y', 'z'
+            )
     else:
-        raise RuntimeError("Study Type not defined.")
+        lmp.cmd.group('mobile_atoms', 'subtract', 'all', 'top_surface', 'bottom_surface')
 
-def defComputes(lmp):
-
+    # ---------------------------------------------------------
+    # 8. Define computes and fixes (temperature, stress, etc.)
+    # ---------------------------------------------------------
     lmp.cmd.compute('peratom', 'all', 'pe/atom')
     lmp.cmd.compute('stress', 'all', 'stress/atom', 'NULL')
     lmp.cmd.compute('temp_compute', 'all', 'temp')
     lmp.cmd.compute('press_comp', 'all', 'pressure', 'temp_compute')
 
-# -----------------------
-# Main
-# -----------------------
+    DT = params.get('time_step', 0.001)
+    lmp.cmd.fix('1', 'all', 'nvt', 'temp',
+                params['temperature'], params['temperature'], 100.0 * DT)
+    lmp.cmd.velocity('mobile_atoms', 'create',
+                     params['temperature'], params['random_seed'], 'mom', 'yes', 'rot', 'yes')
+
+    # ---------------------------------------------------------
+    # 9. Apply loading conditions
+    # ---------------------------------------------------------
+    if (params['force_type'] == 'strain'):
+
+        lmp.cmd.fix('top_surface_freeze', 'top_surface', 'setforce', 0.0, 0.0, 0.0)
+        lmp.cmd.fix('bottom_surface_freeze', 'bottom_surface', 'setforce', 0.0, 0.0, 0.0)
+
+        # Calculate strain velocity for the surface (strain rate * height of simulation cell)
+        strainRate = params['force_magnitude'] # In Strain
+        strainVelocity = strainRate * abs(ymax - ymin)
+
+        lmp.cmd.velocity('top_surface', 'set', -strainVelocity, 0.0, 0.0)
+        lmp.cmd.velocity('bottom_surface', 'set', 0.0, 0.0, 0.0)
+
+    elif (params['force_type'] == 'stress'):
+
+        # Freeze top & bottom surfaces (no z motion)
+        lmp.cmd.fix('top_surface_freeze', 'top_surface', 'setforce', 0.0, 0.0, 0.0)
+        lmp.cmd.fix('bottom_surface_freeze', 'bottom_surface', 'setforce', 0.0, 0.0, 0.0)
+
+        # Convert input pressure (MPa → Pa)
+        pressure = params['force_magnitude'] * 1.0e6  # Pa = N/m²
+
+        # Compute area of top plane (convert Å² → m²)
+        planeArea_m2 = abs(xmax - xmin) * abs(zmax - zmin) * 1.0e-20  # m²
+
+        # Total force applied across the top surface [N]
+        forceTotal_N = pressure * planeArea_m2  # N
+
+        # Get number of atoms in top surface group
+        lmp.cmd.variable("n_top", "equal", "count(top_surface)")
+        nAtomsTop = int(lmp.extract_variable("n_top", None, 0))
+
+        print(f"[✓] Total atoms in top_surface: {nAtomsTop}")
+
+        # Convert to per-atom force in eV/Å
+        force_per_atom_N = forceTotal_N / nAtomsTop
+        force_per_atom_eV_per_A = force_per_atom_N * (6.241509E8)  # N → eV/Å
+
+        print(f"[✓] Applying total shear stress of {pressure/1e6:.2f} MPa "
+            f"→ {force_per_atom_eV_per_A:.3e} eV/Å per atom")
+
+        # Apply shear load in -x direction
+        lmp.cmd.fix('top_surface_shear_force', 'top_surface', 'addforce',
+                    -force_per_atom_eV_per_A, 0.0, 0.0)
+        
+    # ---------------------------------------------------------
+    # 10. Handle precipitate motion
+    # ---------------------------------------------------------
+    if (params['study_type'] == 'prec'):
+        lmp.cmd.fix('precipitate_freeze', 'obstacle', 'setforce', 0.0, 0.0, 0.0)
+        lmp.cmd.velocity('obstacle', 'set', 0.0, 0.0, 0.0)
+
+    # ---------------------------------------------------------
+    # 11. Thermo, dump, and restart settings
+    # ---------------------------------------------------------
+    lmp.cmd.thermo_style('custom', 'step', 'temp', 'pe', 'etotal',
+                         'c_press_comp[1]', 'c_press_comp[2]', 'c_press_comp[3]',
+                         'c_press_comp[4]', 'c_press_comp[5]', 'c_press_comp[6]')
+    lmp.cmd.thermo(params['thermo_freq'])
+
+    dumpPath = os.path.join(params['dump_dir'], 'dump_*')
+    lmp.cmd.dump('1', 'all', 'custom', params['dump_freq'], dumpPath, 'id', 'x', 'y', 'z', 'c_peratom')
+
+    restartPath = os.path.join(params['restart_dir'], 'restart_*')
+    if params.get('restart_freq', 0):
+        lmp.cmd.restart(params['restart_freq'], restartPath)
+
+    # ---------------------------------------------------------
+    # 12. Run the simulation
+    # ---------------------------------------------------------
+    lmp.cmd.run(params['run_time'])
+
+    print(f"[✓] LAMMPS run complete. Log: {os.path.join(params['logs_dir'], 'log.lammps')}")
+
+# =============================================================
+# ENTRY POINT
+# =============================================================
+
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="Run a dislocation–void interaction simulation.")

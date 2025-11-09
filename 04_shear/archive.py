@@ -184,7 +184,7 @@ def sim_void():
     lmp.cmd.group('bottom_surface', 'region', 'bottom_surface_reg')
     lmp.cmd.group('void', 'region', 'void_reg')
     lmp.cmd.group('mobile_atoms', 'subtract', 'all', 'void', 'top_surface', 'bottom_surface')
-
+    
     lmp.cmd.delete_atoms('group', 'void')
     lmp.cmd.write_dump('all', 'custom', os.path.join(OUTPUT_DIR, 'displaced_voided_config.txt'), 'id', 'x', 'y', 'z')
 
