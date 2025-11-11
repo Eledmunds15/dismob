@@ -8,9 +8,9 @@ import numpy as np
 # Base template
 # -----------------------
 BASE_CONFIG = {
-    "input_dir": "/000_data/02_minimize/output",
+    "input_dir": "000_data/02_minimize/output",
     "input_file": None,
-    "potential_file": "../00_potentials/malerba.fs",
+    "potential_file": "00_potentials/malerba.fs",
     "dislo_type": None,
     "study_type": None,
     "fixed_surface_depth": 5.0,
@@ -114,11 +114,11 @@ def generate_configs_from_df(df: pd.DataFrame, study_name: str):
 
     Args:
         df: pandas DataFrame with parameters for each study.
-        study_name: Name of the study (used to create a subdirectory in 000_data/03_shear)
+        study_name: Name of the study (used to create a subdirectory in 000_data/04_shear)
     """
     # Base study directory
     BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '000_data'))
-    study_dir = os.path.join(BASE_DIR, "03_shear", study_name)
+    study_dir = os.path.join(BASE_DIR, "04_shear", study_name)
     os.makedirs(study_dir, exist_ok=True)
 
     # Dedicated directory to store YAMLs

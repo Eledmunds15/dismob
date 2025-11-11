@@ -3,7 +3,7 @@
 Run the dislocation–void interaction simulation.
 
 Example run:
-apptainer exec 00_envs/lmp_CPU_22Jul2025.sif /opt/venv/bin/python3 04_shear/run.py --config 000_data/03_shear/test_run/configs/1_stN_dtE_T100_FS10M_S9233.yaml --bench
+apptainer exec 00_envs/lmp_CPU_22Jul2025.sif /opt/venv/bin/python3 04_shear/run.py --config 000_data/04_shear/test_run/configs/1_stN_dtE_T100_FS10M_S1781.yaml --bench
 """
 
 import os
@@ -17,6 +17,7 @@ import datetime
 # =============================================================
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+print(f"Project Root = {PROJECT_ROOT}")
 params = {}
 
 # =============================================================
@@ -30,8 +31,10 @@ def extractParams(args_config_path, args_bench):
     # --- Make YAML path absolute ---
     if not os.path.isabs(args_config_path):
         config_path = os.path.join(PROJECT_ROOT, args_config_path)
+        print("Making absolute path")
     else:
         config_path = args_config_path
+        print("Using absolute path")
 
     if not os.path.exists(config_path):
         raise FileNotFoundError(f"Config file not found: {config_path}")
@@ -49,7 +52,7 @@ def extractParams(args_config_path, args_bench):
 
     # --- Apply benchmark mode ---
     if args_bench:
-        params["run_time"] = 1000  # quick runtime
+        params["run_time"] = 100  # quick runtime
         params["bench"] = True
     else:
         params["bench"] = False
@@ -121,16 +124,18 @@ def lammpsSim():
     if not params:
         raise RuntimeError("Parameters not loaded. Call extractParams() first.")
 
+
     # ---------------------------------------------------------
     # 1. Load input file and initialize LAMMPS
     # ---------------------------------------------------------
-    full_input_path = os.path.join(params["input_dir"], params["input_file"])
+    full_input_path = os.path.join(PROJECT_ROOT, params["input_dir"], params["input_file"])
     if not os.path.exists(full_input_path):
         raise FileNotFoundError(f"Input file not found: {full_input_path}")
 
     lmp = lammps()
     lmp.cmd.clear()
     lmp.cmd.log(os.path.join(params['logs_dir'], 'log.lammps'))
+
 
     # ---------------------------------------------------------
     # 2. Basic setup (units, dimensions, boundary, atom style)
@@ -140,12 +145,14 @@ def lammpsSim():
     lmp.cmd.boundary('p', 'f', 'p')
     lmp.cmd.atom_style('atomic')
 
+
     # ---------------------------------------------------------
     # 3. Read structure and define potential
     # ---------------------------------------------------------
     lmp.cmd.read_data(full_input_path)
     lmp.cmd.pair_style('eam/fs')
     lmp.cmd.pair_coeff('* *', params['potential_file'], 'Fe')
+
 
     # ---------------------------------------------------------
     # 4. Extract simulation box information
@@ -166,6 +173,7 @@ def lammpsSim():
         f"Box center: ({simBoxCenter[0]:.3f}, {simBoxCenter[1]:.3f}, {simBoxCenter[2]:.3f})"
     )
 
+
     # ---------------------------------------------------------
     # 5. Define groups and initial displacement
     # ---------------------------------------------------------
@@ -183,6 +191,7 @@ def lammpsSim():
             'id', 'x', 'y', 'z'
         )
 
+
     # ---------------------------------------------------------
     # 6. Define surface regions and groups
     # ---------------------------------------------------------
@@ -192,6 +201,7 @@ def lammpsSim():
                    (ymin + params['fixed_surface_depth']), 'INF', 'INF')
     lmp.cmd.group('top_surface', 'region', 'top_surface_reg')
     lmp.cmd.group('bottom_surface', 'region', 'bottom_surface_reg')
+
 
     # ---------------------------------------------------------
     # 7. Define obstacle / void / precipitate regions
@@ -220,6 +230,7 @@ def lammpsSim():
     else:
         lmp.cmd.group('mobile_atoms', 'subtract', 'all', 'top_surface', 'bottom_surface')
 
+
     # ---------------------------------------------------------
     # 8. Define computes and fixes (temperature, stress, etc.)
     # ---------------------------------------------------------
@@ -233,6 +244,7 @@ def lammpsSim():
                 params['temperature'], params['temperature'], 100.0 * DT)
     lmp.cmd.velocity('mobile_atoms', 'create',
                      params['temperature'], params['random_seed'], 'mom', 'yes', 'rot', 'yes')
+
 
     # ---------------------------------------------------------
     # 9. Apply loading conditions
@@ -281,12 +293,14 @@ def lammpsSim():
         lmp.cmd.fix('top_surface_shear_force', 'top_surface', 'addforce',
                     -force_per_atom_eV_per_A, 0.0, 0.0)
         
+
     # ---------------------------------------------------------
     # 10. Handle precipitate motion
     # ---------------------------------------------------------
     if (params['study_type'] == 'prec'):
         lmp.cmd.fix('precipitate_freeze', 'obstacle', 'setforce', 0.0, 0.0, 0.0)
         lmp.cmd.velocity('obstacle', 'set', 0.0, 0.0, 0.0)
+
 
     # ---------------------------------------------------------
     # 11. Thermo, dump, and restart settings
@@ -303,12 +317,15 @@ def lammpsSim():
     if params.get('restart_freq', 0):
         lmp.cmd.restart(params['restart_freq'], restartPath)
 
+
     # ---------------------------------------------------------
     # 12. Run the simulation
     # ---------------------------------------------------------
     lmp.cmd.run(params['run_time'])
 
     print(f"[✓] LAMMPS run complete. Log: {os.path.join(params['logs_dir'], 'log.lammps')}")
+
+    return None
 
 # =============================================================
 # ENTRY POINT
