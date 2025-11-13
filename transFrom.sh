@@ -8,7 +8,11 @@ DEST_DIR="/mnt/parscratch/users/mtp24ele/dismob/"
 
 # Use rsync for efficient transfer
 echo "Starting file transfer..."
-rsync -avzP --exclude="*/restarts/" --exclude="*/dump/" --exclude="00_envs/" "$USER@$HOST:$DEST_DIR" "$SOURCE_DIR"
+rsync -avzP \
+  --exclude="*/restarts/" \
+  --exclude="*/dump/" \
+  --exclude="00_envs/" \
+  "$USER@$HOST:$DEST_DIR" "$SOURCE_DIR"
 
 # Check if the transfer was successful
 if [ $? -eq 0 ]; then

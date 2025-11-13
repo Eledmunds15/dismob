@@ -8,7 +8,7 @@ import numpy as np
 # Base template
 # -----------------------
 BASE_CONFIG = {
-    "input_dir": "000_data/02_minimize/output",
+    "input_dir": "000_data/03_minimize/output",
     "input_file": None,
     "potential_file": "00_potentials/malerba.fs",
     "dislo_type": None,
@@ -118,7 +118,7 @@ def generate_configs_from_df(df: pd.DataFrame, study_name: str):
     """
     # Base study directory
     BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '000_data'))
-    study_dir = os.path.join(BASE_DIR, "04_shear", study_name)
+    study_dir = os.path.join(BASE_DIR, "05_shear", study_name)
     os.makedirs(study_dir, exist_ok=True)
 
     # Dedicated directory to store YAMLs

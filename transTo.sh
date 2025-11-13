@@ -8,7 +8,14 @@ DEST_DIR="/mnt/parscratch/users/mtp24ele/dismob/"
 
 # Use rsync for efficient transfer
 echo "Starting file transfer..."
-rsync -avzP --exclude="*.git" --exclude="000_archived_data" --exclude="slurm*" --exclude="*.sif" --exclude="*.ipynb" "$SOURCE_DIR/" "$USER@$HOST:$DEST_DIR"
+rsync -avzP \
+  --exclude="*.git" \
+  --exclude="000_archived_data" \
+  --exclude="01_lat_param" \
+  --exclude="slurm*" \
+  --exclude="*.sif" \
+  --exclude="*.ipynb" \
+  "$SOURCE_DIR/" "$USER@$HOST:$DEST_DIR"
 
 # Check if the transfer was successful
 if [ $? -eq 0 ]; then
