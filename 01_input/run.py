@@ -4,7 +4,7 @@
 # Version: v1.0
 # Description: Python script to produce input for precipitate calculations.
 # Note: Dislocation is aligned along Z, glide plane along X axis, climb plane is Y axis.
-# Command: apptainer exec 00_envs/lmp_CPU_22Jul2025.sif python3 02_input/run.py
+# Command: apptainer exec 00_envs/lmp_CPU_22Jul2025.sif python3 01_input/run.py
 # =============================================================
 
 # =============================================================
@@ -22,7 +22,7 @@ from matscipy.dislocation import get_elastic_constants
 # =============================================================
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '000_data')) # Master data directory
-STAGE_DATA_DIR = os.path.abspath(os.path.join(BASE_DIR, '02_input')) # Stage data directory
+STAGE_DATA_DIR = os.path.abspath(os.path.join(BASE_DIR, '01_input')) # Stage data directory
 
 OUTPUT_DIR = os.path.join(STAGE_DATA_DIR, 'output') # Output folder
 DUMP_DIR = os.path.join(STAGE_DATA_DIR, 'dump') # Dump folder

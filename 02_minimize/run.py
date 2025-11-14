@@ -93,8 +93,6 @@ def lammpsSim(input_file: str):
         print(f"\n[DONE] ✅ Output written to {OUTPUT_PATH}")
         print(f"[LOG]  🧾 Log file: {LOG_PATH}\n")
 
-    lmp
-
     return None
 
 
